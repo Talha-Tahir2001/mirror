@@ -81,6 +81,7 @@ export async function GET(
                         : 'error',
             }
             : null,
+        outfitTasks: outfitTasks.map((t) => ({ id: t.id, status: t.status })),
         skinConcerns: skinScan
             ? (skinScan.concerns as SkinAnalysisOutputItem[])
             : null,

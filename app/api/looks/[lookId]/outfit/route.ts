@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { eq, and } from 'drizzle-orm';
 import { db } from '@/db';
-import { looks, outfitRenders, garments } from '@/db/schema';
+import { looks, tasks, outfitRenders, garments } from '@/db/schema';
 import { signedBlobUrl } from '@/lib/storage';
 
 export async function GET(
@@ -35,6 +35,19 @@ export async function GET(
         .leftJoin(garments, eq(outfitRenders.garmentId, garments.id))
         .where(eq(outfitRenders.lookId, lookId));
 
+    const outfitTasks = await db
+        .select()
+        .from(tasks)
+        .where(and(eq(tasks.lookId, lookId), eq(tasks.kind, 'cloth_vto')));
+
+    const outfitStatus = outfitTasks.length
+        ? outfitTasks.some((t) => t.status === 'running')
+            ? 'running'
+            : outfitTasks.some((t) => t.status === 'success')
+                ? 'success'
+                : 'error'
+        : null;
+
     // Normalise for the OutfitCarousel component shape. Private-blob URLs are
     // signed so the browser can load them.
     const options = [];
@@ -51,6 +64,7 @@ export async function GET(
     return NextResponse.json({
         options,
         selectedId: look.selectedOutfitRenderId ?? options[0]?.id ?? null,
+        outfitStatus,
     });
 }
 
