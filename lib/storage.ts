@@ -1,4 +1,4 @@
-import { put, getDownloadUrl } from '@vercel/blob';
+import { put, getDownloadUrl, issueSignedToken, presignUrl } from '@vercel/blob';
 
 /**
  * Downloads a YouCam result (mask image or VTO render) from its temporary
@@ -49,15 +49,47 @@ export async function persistYouCamResults(
 
 /**
  * Produces a short-lived signed URL for a private blob so it can be rendered
- * client-side. Returns the original URL unchanged if it isn't a blob URL.
+ * client-side. `getDownloadUrl()` only appends `?download=1` and is NOT
+ * authenticated, so private stores 403 with it — instead we issue a scoped
+ * `get` delegation token and sign the concrete URL with `presignUrl()`.
+ * Returns the original URL unchanged if it isn't a blob URL.
  */
 export async function signedBlobUrl(
     url: string | null | undefined,
 ): Promise<string | null> {
     if (!url) return null;
     try {
-        return await getDownloadUrl(url);
-    } catch {
-        return url;
+        const { pathname, hostname } = new URL(url);
+        const cleanPath = pathname.replace(/^\//, '');
+        const access = hostname.includes('.private.blob.')
+            ? 'private'
+            : 'public';
+
+        const signedToken = await issueSignedToken({
+            pathname: cleanPath,
+            operations: ['get'],
+        });
+
+        // Sign the concrete blob URL with a short-lived delegation. The
+        // pathname must match the token scope; the host is rebuilt from the
+        // embedded store id + access, which is why `access` is passed too.
+        const presignOptions = {
+            operation: 'get' as const,
+            pathname: cleanPath,
+            access,
+        };
+        const { presignedUrl } = await presignUrl(
+            signedToken,
+            presignOptions as Parameters<typeof presignUrl>[1] & {
+                access: 'private' | 'public';
+            },
+        );
+        return presignedUrl;
+    } catch (err) {
+        console.warn(
+            'signedBlobUrl presign failed, falling back to download URL:',
+            (err as Error).message,
+        );
+        return getDownloadUrl(url);
     }
 }
