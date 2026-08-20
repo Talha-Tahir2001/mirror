@@ -95,7 +95,12 @@ export interface ClothVtoTaskResponse {
 }
 
 export interface ClothVtoStatusResponse {
-    url?: string; // present on success, valid for 2 hours
-    status?: number; // only present on error responses
-    error?: string;
+    status: number;
+    data: {
+        task_status: string;
+        error: string | null;
+        results?: {
+            url?: string;
+        };
+    };
 }
