@@ -39,13 +39,10 @@ export async function createClothVtoTask({
 }
 
 /**
- * NOTE: the cloth-v4 status docs we have only document the *success* response
- * shape ({ url }) and error shapes — unlike skin-analysis, no explicit
- * `task_status: "running"` field is documented for this endpoint. This helper
- * treats "no url yet" as still running, which matches the documented examples,
- * but this is worth confirming with one real polling cycle in the Playground
- * before the demo — if the running-state response looks different than
- * expected, the isDone check below needs adjusting.
+ * Like the skin-analysis endpoint, cloth-v4 status responses nest under
+ * `data.task_status` / `data.results.url` (verified against a live task).
+ * A task is done when a render URL is present, or an error is reported;
+ * anything else means it's still processing.
  */
 export async function getClothVtoTask(
     taskId: string,
@@ -55,11 +52,14 @@ export async function getClothVtoTask(
         { method: 'GET' },
     );
 
-    if (res.url) {
-        return { isDone: true, url: res.url };
+    const url = res.data?.results?.url;
+    const error = res.data?.error;
+
+    if (url) {
+        return { isDone: true, url };
     }
-    if (res.error) {
-        return { isDone: true, error: res.error };
+    if (error) {
+        return { isDone: true, error };
     }
     return { isDone: false };
 }
