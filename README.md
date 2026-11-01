@@ -517,4 +517,6 @@ YouCam errors are parsed into user-friendly messages in the skin-analysis poll r
 
 ## License
 
-Private. All rights reserved.
+This project is open-source and available under the [MIT License](https://github.com/Talha-Tahir2001/mirror/blob/main/LICENSE).
+
+All rights reserved.
